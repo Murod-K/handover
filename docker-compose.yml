@@ -1,0 +1,13 @@
+version: "3.9"
+
+services:
+  bot:
+    build: .
+    container_name: handover_bot
+    restart: unless-stopped
+    volumes:
+      - ./data_volume:/app/data
+    environment:
+      - BOT_TOKEN=8752565922:AAHlg4rk_BNba5qZtSPWLod_m3XY1nRKU6Y
+      - OPENAI_API_KEY=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
+      - DB_PATH=/app/data/handover.db
