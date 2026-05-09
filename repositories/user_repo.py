@@ -1,41 +1,51 @@
 import aiosqlite
-from config import Config
+import os
 
-DB_PATH = Config().DB_PATH
+DB_PATH = os.getenv("DB_PATH", "handover.db")
+
+# First telegram_id in DB becomes admin automatically
+ADMIN_IDS: set[int] = set()
 
 
-async def get_or_create_user(telegram_id: int, username: str = None) -> dict:
+async def get_or_create(tg_id: int, username: str = None, full_name: str = None) -> dict:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute(
-            "SELECT * FROM users WHERE telegram_id = ?", (telegram_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            if row:
-                return dict(row)
+        row = await (await db.execute(
+            "SELECT * FROM users WHERE telegram_id=?", (tg_id,)
+        )).fetchone()
+        if row:
+            return dict(row)
+        # First user = admin
+        count = (await (await db.execute("SELECT COUNT(*) FROM users")).fetchone())[0]
+        role = "admin" if count == 0 else "engineer"
         await db.execute(
-            "INSERT INTO users (telegram_id, username, language) VALUES (?, ?, 'ru')",
-            (telegram_id, username)
+            "INSERT INTO users (telegram_id, username, full_name, role) VALUES (?,?,?,?)",
+            (tg_id, username, full_name, role)
         )
         await db.commit()
-        async with db.execute(
-            "SELECT * FROM users WHERE telegram_id = ?", (telegram_id,)
-        ) as cursor:
-            return dict(await cursor.fetchone())
+        row = await (await db.execute(
+            "SELECT * FROM users WHERE telegram_id=?", (tg_id,)
+        )).fetchone()
+        return dict(row)
 
 
-async def set_language(telegram_id: int, lang: str):
+async def set_language(tg_id: int, lang: str):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute(
-            "UPDATE users SET language = ? WHERE telegram_id = ?", (lang, telegram_id)
-        )
+        await db.execute("UPDATE users SET language=? WHERE telegram_id=?", (lang, tg_id))
         await db.commit()
 
 
-async def get_language(telegram_id: int) -> str:
+async def get_language(tg_id: int) -> str:
     async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute(
-            "SELECT language FROM users WHERE telegram_id = ?", (telegram_id,)
-        ) as cursor:
-            row = await cursor.fetchone()
-            return row[0] if row else "ru"
+        row = await (await db.execute(
+            "SELECT language FROM users WHERE telegram_id=?", (tg_id,)
+        )).fetchone()
+        return row[0] if row else "ru"
+
+
+async def get_role(tg_id: int) -> str:
+    async with aiosqlite.connect(DB_PATH) as db:
+        row = await (await db.execute(
+            "SELECT role FROM users WHERE telegram_id=?", (tg_id,)
+        )).fetchone()
+        return row[0] if row else "engineer"
