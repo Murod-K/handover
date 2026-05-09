@@ -1,47 +1,51 @@
 from aiogram.fsm.state import State, StatesGroup
 
 
-class LanguageStates(StatesGroup):
+class LangSG(StatesGroup):
     choosing = State()
 
 
-class ProjectStates(StatesGroup):
-    choosing_project = State()
-    choosing_subproject = State()
+class MenuSG(StatesGroup):
+    main = State()
 
 
-class ShiftStates(StatesGroup):
-    choosing_shift_type = State()
-    confirming = State()
+class ShiftSG(StatesGroup):
+    project    = State()
+    subproject = State()
+    shift_type = State()
 
 
-class EntryStates(StatesGroup):
-    # Structure
-    choosing_structure_type = State()
-    entering_structure_name = State()
+class EntrySG(StatesGroup):
+    structure_type  = State()
+    structure_name  = State()
+    natura          = State()
+    rebar           = State()
+    defects         = State()
+    defect_custom   = State()
+    concrete        = State()
+    pour_method     = State()
+    pump_type       = State()
+    pump_logistics  = State()
+    formwork        = State()
+    waterproof      = State()
+    rebar_for_pour  = State()
+    volume          = State()
+    comment         = State()
+    entry_done      = State()
 
-    # Natura (разрешение на работу)
-    choosing_natura = State()
 
-    # Rebar
-    choosing_rebar_status = State()
-    choosing_rebar_defects = State()
-    entering_rebar_comment = State()
-
-    # Concrete
-    choosing_concrete_plan = State()
-    checking_concrete_available = State()
-    choosing_formwork_ready = State()
-    choosing_waterproof_ready = State()
-    choosing_rebar_ready_for_pour = State()
-    entering_concrete_volume = State()
-    choosing_pour_method = State()
-    choosing_pump_type = State()
-    choosing_pump_logistics = State()
-    entering_pump_logistics_detail = State()
-
-    # Entry comment
-    entering_entry_comment = State()
-
-    # After entry done
-    entry_done = State()
+class AdminSG(StatesGroup):
+    menu           = State()
+    # Projects
+    projects_list  = State()
+    add_project    = State()
+    project_detail = State()
+    subprojects    = State()
+    add_subproject = State()
+    # Reference tables
+    ref_list       = State()
+    ref_add_ru     = State()
+    ref_add_uz     = State()
+    ref_add_en     = State()
+    ref_add_tr     = State()
+    ref_confirm_del = State()
