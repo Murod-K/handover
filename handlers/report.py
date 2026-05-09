@@ -4,42 +4,79 @@ from aiogram.fsm.context import FSMContext
 
 from data.translations import t
 from repositories.user_repo import get_language
-from repositories.shift_repo import get_active_shift, finish_shift, get_shift_entries
+from repositories.shift_repo import get_entries, finish_shift, get_active_shift
 from services.report_service import generate_report
-from states import EntryStates
+from handlers.start import show_main_menu
 
 router = Router()
 
 
-@router.callback_query(F.data == "entry:finish_shift")
-async def on_finish_shift(callback: CallbackQuery, state: FSMContext):
+async def send_report(callback: CallbackQuery, state: FSMContext):
     lang = await get_language(callback.from_user.id)
     data = await state.get_data()
     shift_id = data.get("shift_id")
 
-    if not shift_id:
-        await callback.answer("No active shift", show_alert=True)
-        return
-
-    entries = await get_shift_entries(shift_id)
+    entries = await get_entries(shift_id) if shift_id else []
     if not entries:
         await callback.answer(t("no_entries", lang), show_alert=True)
         return
 
-    await callback.message.edit_text(t("shift_finished", lang))
+    await callback.message.edit_text(t("generating_report", lang))
+    await finish_shift(shift_id)
 
-    shift = await get_active_shift(callback.from_user.id)
-    if shift:
-        await finish_shift(shift["id"])
+    report = await generate_report(shift_id, lang)
 
-        report = await generate_report(shift, lang)
-        # Send report in chunks if needed
-        if len(report) > 4000:
-            chunks = [report[i:i+4000] for i in range(0, len(report), 4000)]
-            for chunk in chunks:
-                await callback.message.answer(chunk, parse_mode="Markdown")
-        else:
-            await callback.message.answer(report, parse_mode="Markdown")
+    # Send in chunks if needed
+    if len(report) > 4096:
+        chunks = [report[i:i+4096] for i in range(0, len(report), 4096)]
+        await callback.message.delete()
+        for chunk in chunks:
+            await callback.message.answer(chunk, parse_mode="Markdown")
+    else:
+        await callback.message.edit_text(report, parse_mode="Markdown")
 
     await state.clear()
+    # Return to main menu
+    await show_main_menu(callback, lang, callback.from_user.id, state)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "menu:reports")
+async def on_my_reports(callback: CallbackQuery, state: FSMContext):
+    from repositories.shift_repo import get_recent_shifts
+    lang = await get_language(callback.from_user.id)
+    shifts = await get_recent_shifts(callback.from_user.id, limit=5)
+
+    if not shifts:
+        await callback.answer("📭 Нет завершённых смен", show_alert=True)
+        return
+
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
+    kb = InlineKeyboardBuilder()
+    for s in shifts:
+        dt = (s.get("finished_at") or "")[:10]
+        label = f"{s['shift_type']} | {s.get('project_name','?')} | {dt}"
+        kb.button(text=label, callback_data=f"view_report:{s['id']}")
+    from data.translations import t
+    kb.button(text=t("btn_back", lang), callback_data="menu:main")
+    kb.adjust(1)
+    await callback.message.edit_text(
+        "📊 *Последние смены:*",
+        reply_markup=kb.as_markup(), parse_mode="Markdown"
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("view_report:"))
+async def on_view_report(callback: CallbackQuery, state: FSMContext):
+    shift_id = int(callback.data.split(":")[1])
+    lang = await get_language(callback.from_user.id)
+    report = await generate_report(shift_id, lang)
+    if len(report) > 4096:
+        chunks = [report[i:i+4096] for i in range(0, len(report), 4096)]
+        await callback.message.delete()
+        for chunk in chunks:
+            await callback.message.answer(chunk, parse_mode="Markdown")
+    else:
+        await callback.message.edit_text(report, parse_mode="Markdown")
     await callback.answer()
