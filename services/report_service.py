@@ -1,150 +1,192 @@
 """
 Report generator.
-Generates report PURELY from stored codes using label dictionaries.
-NO text is translated — all data was stored as codes.
+Produces a structured tabular report from stored codes.
+No translation of stored data — all from dictionaries and DB labels.
 """
 
 from datetime import datetime
-from data.translations import (
-    t, label,
-    STRUCTURE_TYPE_LABELS, NATURA_LABELS, REBAR_STATUS_LABELS,
-    DEFECT_LABELS, POUR_METHOD_LABELS, PUMP_TYPE_LABELS,
-    PUMP_LOGISTICS_LABELS, SHIFT_TYPE_LABELS
-)
-from enums import NaturaStatus, RebarStatus, ConcretePlan, ConcreteAvailable, PourMethod
-from repositories.shift_repo import get_shift_entries, get_entry_defects
-from repositories.project_repo import get_project, get_subproject
+from data.translations import t, lbl, SHIFT_LABELS, NATURA_LABELS, REBAR_LABELS, PUMP_LOGISTICS_LABELS
+from repositories.shift_repo import get_entries, get_entry_defects, get_shift_with_project
+from repositories.ref_repo import get_item
 
 
-async def generate_report(shift: dict, lang: str) -> str:
-    """Generate full shift handover report in user's language."""
-    entries = await get_shift_entries(shift["id"])
-    project = await get_project(shift["project_id"])
-    subproject = await get_subproject(shift["subproject_id"])
+def _col(item: dict, lang: str, fallback_key: str = "name_ru") -> str:
+    col = f"name_{lang}"
+    return item.get(col) or item.get(fallback_key) or "—"
+
+
+def _yn(val: str, lang: str) -> str:
+    if val == "READY":
+        return "✅"
+    if val == "NOT_READY":
+        return "❌"
+    return "—"
+
+
+async def generate_report(shift_id: int, lang: str) -> str:
+    shift = await get_shift_with_project(shift_id)
+    if not shift:
+        return "❌ Смена не найдена"
+
+    entries = await get_entries(shift_id)
+    if not entries:
+        return t("no_entries", lang)
+
+    now = datetime.now().strftime("%d.%m.%Y %H:%M")
+    shift_label = lbl(SHIFT_LABELS, shift["shift_type"], lang)
+    started = (shift.get("started_at") or "")[:16].replace("T", " ")
 
     lines = []
 
-    # Header
-    lines.append(f"{'═' * 35}")
-    lines.append(f"📋 *{t('report_header', lang)}*")
-    lines.append(f"{'═' * 35}")
-    lines.append(f"")
+    # ══════════════════════════════════════════
+    # HEADER
+    # ══════════════════════════════════════════
+    lines.append("```")
+    lines.append("╔══════════════════════════════════════════╗")
+    lines.append("║     АКТ ПЕРЕДАЧИ СМЕНЫ / HANDOVER        ║")
+    lines.append("╚══════════════════════════════════════════╝")
+    lines.append(f"  Объект   : {shift.get('project_name', '—')}")
+    lines.append(f"  Блок/зона: {shift.get('subproject_name', '—')}")
+    lines.append(f"  Смена    : {shift_label}  |  {started}")
+    lines.append(f"  Дата     : {now}")
+    lines.append("──────────────────────────────────────────")
+    lines.append("```")
 
-    # Shift info
-    shift_type_label = label(SHIFT_TYPE_LABELS, shift["shift_type"], lang)
-    project_name = project["name"] if project else "—"
-    subproject_name = subproject["name"] if subproject else "—"
+    warnings = []
+    total_volume = 0.0
+    pour_count = 0
 
-    started = shift.get("started_at", "—")
-    if isinstance(started, str) and "." in started:
-        started = started[:16]
-
-    lines.append(f"🏗 *{project_name}*")
-    lines.append(f"📂 {subproject_name}")
-    lines.append(f"⏱ {shift_type_label}  |  {started}")
-    lines.append("")
-
-    if not entries:
-        lines.append(t("report_no_entries", lang))
-        return "\n".join(lines)
-
+    # ══════════════════════════════════════════
+    # ENTRIES — one card per structure
+    # ══════════════════════════════════════════
     for i, entry in enumerate(entries, 1):
-        lines.append(f"{'─' * 30}")
-        struct_type = label(STRUCTURE_TYPE_LABELS, entry["structure_type"], lang)
-        lines.append(f"*{i}. {struct_type}: {entry['structure_name']}*")
-        lines.append("")
+        struct_type = await get_item("structure_types", entry["structure_type_id"])
+        st_name = _col(struct_type, lang) if struct_type else "—"
+        st_icon = struct_type.get("icon", "🏗") if struct_type else "🏗"
 
-        # NATURA
-        natura = label(NATURA_LABELS, entry["natura_status"], lang)
-        lines.append(f"📋 Натура / Permit: {natura}")
-        if entry["natura_status"] == NaturaStatus.NOT_GIVEN:
-            lines.append(f"   ‼️ {t('warn_natura_not_given', lang)}")
-        elif entry["natura_status"] == NaturaStatus.WILL_BE_NIGHT:
-            lines.append(f"   ⚠️ {t('warn_natura_night', lang)}")
+        natura = lbl(NATURA_LABELS, entry["natura_status"], lang)
+        rebar  = lbl(REBAR_LABELS, entry["rebar_status"], lang)
 
-        # REBAR
-        rebar = label(REBAR_STATUS_LABELS, entry["rebar_status"], lang)
-        lines.append(f"🔩 Арматура / Rebar: {rebar}")
-
+        # Defects
         defects = await get_entry_defects(entry["id"])
-        if defects:
-            lines.append("   Дефекты:")
-            for d in defects:
-                if d["defect_code"] == "DEFECT_CUSTOM" and d["custom_text"]:
-                    lines.append(f"   • {d['custom_text']}")
-                else:
-                    defect_label = label(DEFECT_LABELS, d["defect_code"], lang)
-                    lines.append(f"   • {defect_label}")
+        defect_lines = []
+        for d in defects:
+            if d.get("code") == "CUSTOM" and d.get("custom_text"):
+                defect_lines.append(f"• {d['custom_text']}")
+            else:
+                dname = d.get(f"name_{lang}") or d.get("name_ru") or "—"
+                defect_lines.append(f"• {dname}")
 
-        if entry.get("rebar_comment"):
-            comment_key = "rebar_comment_translated"
-            comment = entry.get(comment_key) or entry.get("rebar_comment", "")
-            if comment:
-                lines.append(f"   💬 {comment}")
-
-        # CONCRETE
+        # Concrete block
         concrete_plan = entry["concrete_plan"]
-        if concrete_plan == ConcretePlan.NO_POUR:
-            lines.append(f"🪣 Бетон / Concrete: ❌ Нет заливки")
-        else:
-            lines.append(f"🪣 Бетон / Concrete: ✅ Заливка запланирована")
+        pour_method_name = "—"
+        pump_name = "—"
+        logistics_name = "—"
+        volume_str = "—"
+        readiness_str = "—"
 
-            if entry.get("concrete_available") == ConcreteAvailable.NO:
-                lines.append(f"   🔴 Бетон отсутствует!")
-            elif entry.get("concrete_available") == ConcreteAvailable.YES:
-                lines.append(f"   ✅ Бетон есть")
-
-            readiness_parts = []
-            fw_map = {"READY": "✅", "NOT_READY": "❌"}
-            if entry.get("formwork_ready"):
-                readiness_parts.append(f"Опалубка: {fw_map.get(entry['formwork_ready'], '—')}")
-            if entry.get("waterproof_ready"):
-                readiness_parts.append(f"Гидроизол.: {fw_map.get(entry['waterproof_ready'], '—')}")
-            if entry.get("rebar_ready_for_pour"):
-                readiness_parts.append(f"Арм.: {fw_map.get(entry['rebar_ready_for_pour'], '—')}")
-            if readiness_parts:
-                lines.append(f"   {' | '.join(readiness_parts)}")
-
+        if concrete_plan == "WILL_POUR":
+            pour_count += 1
             if entry.get("concrete_volume"):
-                lines.append(f"   📐 Объём: *{entry['concrete_volume']} м³*")
+                total_volume += entry["concrete_volume"]
+                volume_str = f"{entry['concrete_volume']} м³"
 
-            if entry.get("pour_method"):
-                pm = label(POUR_METHOD_LABELS, entry["pour_method"], lang)
-                lines.append(f"   🏗 Метод: {pm}")
+            if entry.get("pour_method_id"):
+                pm = await get_item("pour_methods", entry["pour_method_id"])
+                if pm:
+                    pour_method_name = f"{pm.get('icon','🚛')} {_col(pm, lang)}"
 
-            if entry.get("pump_type"):
-                pt = label(PUMP_TYPE_LABELS, entry["pump_type"], lang)
-                lines.append(f"   ⚙️ Насос: {pt}")
+            if entry.get("pump_type_id"):
+                pt = await get_item("pump_types", entry["pump_type_id"])
+                if pt:
+                    pump_name = _col(pt, lang)
 
-            if entry.get("pump_logistics") and entry["pump_logistics"] != "LOGISTICS_NONE":
-                pl = label(PUMP_LOGISTICS_LABELS, entry["pump_logistics"], lang)
-                lines.append(f"   🔧 Логистика: {pl}")
+            if entry.get("pump_logistics"):
+                logistics_name = lbl(PUMP_LOGISTICS_LABELS, entry["pump_logistics"], lang)
 
-        if entry.get("entry_comment"):
-            lines.append(f"💬 {entry.get('entry_comment_translated') or entry['entry_comment']}")
+            fw = _yn(entry.get("formwork_ready"), lang)
+            wp = _yn(entry.get("waterproof_ready"), lang)
+            rb = _yn(entry.get("rebar_ready_for_pour"), lang)
+            readiness_str = f"Оп:{fw} Гидро:{wp} Арм:{rb}"
 
+        # ── Collect warnings ──
+        if entry["natura_status"] == "NATURA_NOT_GIVEN":
+            warnings.append(f"‼️ {st_icon}{entry['structure_name']}: {t('warn_natura_not_given', lang)}")
+        elif entry["natura_status"] == "NATURA_WILL_BE_NIGHT":
+            warnings.append(f"⚠️ {st_icon}{entry['structure_name']}: {t('warn_natura_night', lang)}")
+
+        if entry["rebar_status"] == "REBAR_NOT_ACCEPTED" and concrete_plan == "WILL_POUR":
+            warnings.append(f"‼️ {st_icon}{entry['structure_name']}: {t('warn_rebar_blocks', lang)}")
+
+        # ── Format card ──
+        comment = ""
+        if entry.get("comment"):
+            c_key = f"comment_{lang}"
+            comment = entry.get(c_key) or entry.get("comment") or ""
+
+        lines.append("```")
+        lines.append(f"┌─[{i}] {st_icon} {st_name}: {entry['structure_name']}")
+        lines.append(f"│")
+        lines.append(f"│  📋 Натура    : {natura}")
+        lines.append(f"│  🔩 Арматура  : {rebar}")
+
+        if defect_lines:
+            lines.append(f"│  ⚠️  Дефекты   :")
+            for dl in defect_lines:
+                lines.append(f"│      {dl}")
+
+        lines.append(f"│")
+
+        if concrete_plan == "WILL_POUR":
+            lines.append(f"│  🪣 Бетон     : ✅ ЗАЛИВКА")
+            lines.append(f"│  📐 Объём     : {volume_str}")
+            lines.append(f"│  🚛 Подача    : {pour_method_name}")
+            if pump_name != "—":
+                lines.append(f"│  ⚙️  Насос     : {pump_name}")
+            if logistics_name != "—":
+                lines.append(f"│  🔧 Логистика : {logistics_name}")
+            lines.append(f"│  🔲 Готовность: {readiness_str}")
+        else:
+            lines.append(f"│  🪣 Бетон     : ❌ Заливки нет")
+
+        if comment:
+            lines.append(f"│")
+            lines.append(f"│  💬 {comment}")
+
+        lines.append(f"└{'─'*40}")
+        lines.append("```")
+
+    # ══════════════════════════════════════════
+    # SUMMARY TABLE
+    # ══════════════════════════════════════════
+    lines.append("```")
+    lines.append("┌──────────────── ИТОГ ────────────────────┐")
+    lines.append(f"│  Конструкций всего : {len(entries):<20}│")
+    lines.append(f"│  Запланировано заливок: {pour_count:<17}│")
+    lines.append(f"│  Общий объём бетона: {f'{total_volume:.1f} м³':<20}│")
+    lines.append("├──────────────────────────────────────────┤")
+
+    # Status counts
+    natura_ok  = sum(1 for e in entries if e["natura_status"] == "NATURA_GIVEN")
+    natura_warn = len(entries) - natura_ok
+    rebar_ok   = sum(1 for e in entries if e["rebar_status"] == "REBAR_ACCEPTED")
+    rebar_warn = len(entries) - rebar_ok
+
+    lines.append(f"│  Натура выдана    : {natura_ok}/{len(entries):<21}│")
+    lines.append(f"│  Арматура сдана   : {rebar_ok}/{len(entries):<21}│")
+    lines.append("└──────────────────────────────────────────┘")
+    lines.append("```")
+
+    # ══════════════════════════════════════════
+    # WARNINGS BLOCK
+    # ══════════════════════════════════════════
+    if warnings:
+        lines.append("⚠️ *ПРЕДУПРЕЖДЕНИЯ:*")
+        for w in warnings:
+            lines.append(w)
         lines.append("")
 
-    # Summary block
-    lines.append(f"{'═' * 35}")
-    total = len(entries)
-    pour_count = sum(
-        1 for e in entries if e["concrete_plan"] == ConcretePlan.WILL_POUR
-    )
-    total_vol = sum(
-        e["concrete_volume"] or 0 for e in entries
-        if e["concrete_plan"] == ConcretePlan.WILL_POUR and e.get("concrete_volume")
-    )
-    warning_count = sum(
-        1 for e in entries
-        if e["natura_status"] in (NaturaStatus.NOT_GIVEN, NaturaStatus.WILL_BE_NIGHT)
-        or e["rebar_status"] == RebarStatus.NOT_ACCEPTED
-    )
-
-    lines.append(f"📊 Конструкций: *{total}* | Заливок: *{pour_count}* | Объём: *{total_vol:.1f} м³*")
-    if warning_count:
-        lines.append(f"⚠️ Предупреждений: *{warning_count}*")
-    lines.append(f"{'═' * 35}")
+    lines.append(f"🕐 _Сформировано: {now}_")
     lines.append(f"#handover #{datetime.now().strftime('%Y%m%d')}")
 
     return "\n".join(lines)
