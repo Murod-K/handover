@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import os
 import sys
 from datetime import datetime, timedelta
 from typing import Any, Awaitable, Callable, Dict
@@ -23,9 +22,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# ─── Timeout tracker (own dict, no private API) ───────────────────────────────
-# { (chat_id, user_id): last_activity_datetime }
-_activity: dict[tuple, datetime] = {}
+# Own activity tracker — no private MemoryStorage internals
+_activity: dict = {}
 
 
 class ActivityMiddleware(BaseMiddleware):
@@ -48,7 +46,7 @@ class ActivityMiddleware(BaseMiddleware):
 
 
 async def fsm_timeout_task(bot: Bot, dp: Dispatcher):
-    """Every 60 s check for sessions idle longer than FSM_TIMEOUT_MINUTES."""
+    """Every 60 s clear FSM sessions idle longer than FSM_TIMEOUT_MINUTES."""
     while True:
         await asyncio.sleep(60)
         try:
@@ -85,7 +83,6 @@ async def main():
     storage = MemoryStorage()
     dp = Dispatcher(storage=storage)
 
-    # Register routers
     dp.include_router(auth.router)
     dp.include_router(menu.router)
     dp.include_router(shift.router)
@@ -94,12 +91,24 @@ async def main():
 
     dp.update.middleware(ActivityMiddleware())
 
+    # Drop webhook + pending updates before polling.
+    # Prevents TelegramConflictError on Render rolling redeploy
+    # when the old container is still alive for a few seconds.
+    await bot.delete_webhook(drop_pending_updates=True)
     logger.info("Bot starting...")
-    # Run timeout task alongside polling
-    await asyncio.gather(
-        dp.start_polling(bot, allowed_updates=["message", "callback_query"]),
-        fsm_timeout_task(bot, dp),
-    )
+
+    try:
+        await asyncio.gather(
+            dp.start_polling(
+                bot,
+                allowed_updates=["message", "callback_query"],
+                drop_pending_updates=True,
+            ),
+            fsm_timeout_task(bot, dp),
+        )
+    finally:
+        await bot.session.close()
+        logger.info("Bot session closed.")
 
 
 if __name__ == "__main__":
