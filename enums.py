@@ -1,16 +1,15 @@
 from enum import Enum
 
 
-class Lang(str, Enum):
-    RU = "ru"
-    UZ = "uz"
-    EN = "en"
-    TR = "tr"
+class UserRole(str, Enum):
+    ADMIN = "admin"
+    SENIOR = "senior"
+    ENGINEER = "engineer"
 
 
 class ShiftType(str, Enum):
-    DAY = "DAY"
-    NIGHT = "NIGHT"
+    DAY = "day"
+    NIGHT = "night"
 
 
 class NaturaStatus(str, Enum):
@@ -20,21 +19,18 @@ class NaturaStatus(str, Enum):
 
 
 class RebarStatus(str, Enum):
-    ACCEPTED = "REBAR_ACCEPTED"
+    DONE = "REBAR_DONE"
     PARTIAL = "REBAR_PARTIAL"
-    NOT_ACCEPTED = "REBAR_NOT_ACCEPTED"
+    NOT_DONE = "REBAR_NOT_DONE"
 
 
 class ConcretePlan(str, Enum):
-    WILL_POUR = "WILL_POUR"
-    NO_POUR = "NO_POUR"
+    YES = "CONCRETE_YES"
+    NO = "CONCRETE_NO"
 
 
-class ReadinessStatus(str, Enum):
-    READY = "READY"
-    NOT_READY = "NOT_READY"
-
-
-class UserRole(str, Enum):
-    ADMIN = "admin"
-    ENGINEER = "engineer"
+class PumpLogistics(str, Enum):
+    MOUNT = "PUMP_MOUNT"
+    MOVE = "PUMP_MOVE"
+    BOTH = "PUMP_BOTH"
+    NONE = "PUMP_NONE"
