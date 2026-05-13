@@ -1,82 +1,108 @@
+import logging
+import tempfile
+import os
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message, BufferedInputFile
 from aiogram.fsm.context import FSMContext
 
 from data.translations import t
-from repositories.user_repo import get_language
-from repositories.shift_repo import get_entries, finish_shift, get_active_shift
-from services.report_service import generate_report
-from handlers.start import show_main_menu
+from keyboards.builders import main_menu_keyboard, paginated_keyboard
+from repositories.user_repo import get_user
+from repositories.shift_repo import get_shift_with_entries, get_user_shifts, get_all_shifts
+from services.report_service import generate_html
+from services.access_service import is_admin, is_senior_or_above, check_access
 
+logger = logging.getLogger(__name__)
 router = Router()
 
 
-async def send_report(callback: CallbackQuery, state: FSMContext):
-    lang = await get_language(callback.from_user.id)
-    data = await state.get_data()
-    shift_id = data.get("shift_id")
-
-    entries = await get_entries(shift_id) if shift_id else []
-    if not entries:
-        await callback.answer(t("no_entries", lang), show_alert=True)
+async def generate_and_send_report(message: Message, user_id: int, shift_id: int, lang: str):
+    shift, entries = await get_shift_with_entries(shift_id)
+    if not shift:
+        await message.answer(t("no_reports", lang))
         return
 
-    await callback.message.edit_text(t("generating_report", lang))
-    await finish_shift(shift_id)
+    html = generate_html(shift, entries, lang)
+    filename = f"handover_{shift_id}_{lang}.html"
+    data = html.encode("utf-8")
+    file = BufferedInputFile(data, filename=filename)
 
-    report = await generate_report(shift_id, lang)
-
-    # Send in chunks if needed
-    if len(report) > 4096:
-        chunks = [report[i:i+4096] for i in range(0, len(report), 4096)]
-        await callback.message.delete()
-        for chunk in chunks:
-            await callback.message.answer(chunk, parse_mode="Markdown")
-    else:
-        await callback.message.edit_text(report, parse_mode="Markdown")
-
-    await state.clear()
-    # Return to main menu
-    await show_main_menu(callback, lang, callback.from_user.id, state)
-    await callback.answer()
+    senior = await is_senior_or_above(user_id)
+    admin = await is_admin(user_id)
+    await message.answer_document(
+        file,
+        caption=t("report_ready", lang),
+        reply_markup=main_menu_keyboard(lang, senior, admin)
+    )
 
 
-@router.callback_query(F.data == "menu:reports")
-async def on_my_reports(callback: CallbackQuery, state: FSMContext):
-    from repositories.shift_repo import get_recent_shifts
-    lang = await get_language(callback.from_user.id)
-    shifts = await get_recent_shifts(callback.from_user.id, limit=5)
-
+@router.callback_query(F.data == "reports:my")
+async def my_reports(callback: CallbackQuery, state: FSMContext):
+    allowed, _ = await check_access(callback.from_user.id)
+    if not allowed:
+        await callback.answer(t("no_access", "ru"), show_alert=True)
+        return
+    user = await get_user(callback.from_user.id)
+    lang = user["lang"]
+    shifts = await get_user_shifts(callback.from_user.id)
     if not shifts:
-        await callback.answer("📭 Нет завершённых смен", show_alert=True)
+        await callback.message.edit_text(t("no_reports", lang))
+        await callback.answer()
         return
+    await _show_shift_list(callback, shifts, lang, "report_my")
 
+
+@router.callback_query(F.data == "reports:all")
+async def all_reports(callback: CallbackQuery, state: FSMContext):
+    allowed, _ = await check_access(callback.from_user.id)
+    if not allowed:
+        await callback.answer(t("no_access", "ru"), show_alert=True)
+        return
+    senior = await is_senior_or_above(callback.from_user.id)
+    admin = await is_admin(callback.from_user.id)
+    if not (senior or admin):
+        await callback.answer(t("no_access", "ru"), show_alert=True)
+        return
+    user = await get_user(callback.from_user.id)
+    lang = user["lang"]
+    shifts = await get_all_shifts()
+    if not shifts:
+        await callback.message.edit_text(t("no_reports", lang))
+        await callback.answer()
+        return
+    await _show_shift_list(callback, shifts, lang, "report_all")
+
+
+async def _show_shift_list(callback: CallbackQuery, shifts, lang: str, prefix: str):
     from aiogram.utils.keyboard import InlineKeyboardBuilder
+    from aiogram.types import InlineKeyboardButton
     kb = InlineKeyboardBuilder()
-    for s in shifts:
-        dt = (s.get("finished_at") or "")[:10]
-        label = f"{s['shift_type']} | {s.get('project_name','?')} | {dt}"
-        kb.button(text=label, callback_data=f"view_report:{s['id']}")
-    from data.translations import t
+    for s in shifts[:15]:
+        date_str = str(s["started_at"])[:16] if s["started_at"] else ""
+        eng = f" [{s['engineer_name']}]" if "engineer_name" in s.keys() else ""
+        label = f"{date_str} | {s['project_name']} / {s['subproject_name']}{eng}"
+        kb.button(text=label, callback_data=f"{prefix}:{s['id']}")
     kb.button(text=t("btn_back", lang), callback_data="menu:main")
     kb.adjust(1)
-    await callback.message.edit_text(
-        "📊 *Последние смены:*",
-        reply_markup=kb.as_markup(), parse_mode="Markdown"
-    )
+    await callback.message.edit_text(t("choose_report", lang), reply_markup=kb.as_markup())
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("view_report:"))
-async def on_view_report(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data.startswith("report_my:"))
+async def open_my_report(callback: CallbackQuery):
+    user = await get_user(callback.from_user.id)
+    lang = user["lang"]
     shift_id = int(callback.data.split(":")[1])
-    lang = await get_language(callback.from_user.id)
-    report = await generate_report(shift_id, lang)
-    if len(report) > 4096:
-        chunks = [report[i:i+4096] for i in range(0, len(report), 4096)]
-        await callback.message.delete()
-        for chunk in chunks:
-            await callback.message.answer(chunk, parse_mode="Markdown")
-    else:
-        await callback.message.edit_text(report, parse_mode="Markdown")
+    await callback.message.answer(t("generating_report", lang))
+    await generate_and_send_report(callback.message, callback.from_user.id, shift_id, lang)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("report_all:"))
+async def open_all_report(callback: CallbackQuery):
+    user = await get_user(callback.from_user.id)
+    lang = user["lang"]
+    shift_id = int(callback.data.split(":")[1])
+    await callback.message.answer(t("generating_report", lang))
+    await generate_and_send_report(callback.message, callback.from_user.id, shift_id, lang)
     await callback.answer()
