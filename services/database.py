@@ -1,236 +1,222 @@
 import aiosqlite
-import os
 import logging
+from config import DB_PATH, ADMIN_TG_ID
 
 logger = logging.getLogger(__name__)
-DB_PATH = os.getenv("DB_PATH", "handover.db")
 
 
-async def _migrate(db):
-    """Safely add missing columns to existing tables."""
-    migrations = [
-        ("structure_types", "name_uz",      "TEXT"),
-        ("structure_types", "name_en",      "TEXT"),
-        ("structure_types", "name_tr",      "TEXT"),
-        ("structure_types", "icon",         "TEXT DEFAULT '🏗'"),
-        ("structure_types", "sort_order",   "INTEGER DEFAULT 0"),
-        ("defect_types",    "name_uz",      "TEXT"),
-        ("defect_types",    "name_en",      "TEXT"),
-        ("defect_types",    "name_tr",      "TEXT"),
-        ("defect_types",    "sort_order",   "INTEGER DEFAULT 0"),
-        ("pour_methods",    "name_uz",      "TEXT"),
-        ("pour_methods",    "name_en",      "TEXT"),
-        ("pour_methods",    "name_tr",      "TEXT"),
-        ("pour_methods",    "icon",         "TEXT DEFAULT '🚛'"),
-        ("pour_methods",    "requires_pump","INTEGER DEFAULT 0"),
-        ("pour_methods",    "sort_order",   "INTEGER DEFAULT 0"),
-        ("pump_types",      "name_uz",      "TEXT"),
-        ("pump_types",      "name_en",      "TEXT"),
-        ("pump_types",      "name_tr",      "TEXT"),
-        ("pump_types",      "sort_order",   "INTEGER DEFAULT 0"),
-        ("projects",        "sort_order",   "INTEGER DEFAULT 0"),
-        ("subprojects",     "sort_order",   "INTEGER DEFAULT 0"),
-        ("users",           "full_name",    "TEXT"),
-        ("users",           "role",         "TEXT DEFAULT 'engineer'"),
-        ("entries",         "pour_method_id",    "INTEGER"),
-        ("entries",         "pump_type_id",      "INTEGER"),
-        ("entries",         "pump_logistics",     "TEXT"),
-        ("entries",         "comment",            "TEXT"),
-        ("entries",         "comment_ru",         "TEXT"),
-        ("entries",         "comment_uz",         "TEXT"),
-        ("entries",         "comment_en",         "TEXT"),
-        ("entries",         "comment_tr",         "TEXT"),
-        ("entries",         "structure_type_id",  "INTEGER"),
-        ("entries",         "formwork_ready",     "TEXT"),
-        ("entries",         "waterproof_ready",   "TEXT"),
-        ("entries",         "rebar_ready_for_pour","TEXT"),
-    ]
-    for table, col, col_type in migrations:
-        try:
-            await db.execute(f"ALTER TABLE {table} ADD COLUMN {col} {col_type}")
-            logger.info(f"Migration OK: {table}.{col}")
-        except Exception:
-            pass  # Column already exists — skip
-    await db.commit()
+async def get_db() -> aiosqlite.Connection:
+    db = await aiosqlite.connect(DB_PATH)
+    db.row_factory = aiosqlite.Row
+    await db.execute("PRAGMA journal_mode=WAL")
+    await db.execute("PRAGMA foreign_keys=ON")
+    return db
 
 
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
-        # 1. Create all tables
-        await db.executescript("""
-        PRAGMA foreign_keys = ON;
+        db.row_factory = aiosqlite.Row
+        await db.execute("PRAGMA foreign_keys=ON")
 
+        await db.executescript("""
         CREATE TABLE IF NOT EXISTS users (
             telegram_id INTEGER PRIMARY KEY,
-            username    TEXT,
-            full_name   TEXT,
-            language    TEXT DEFAULT 'ru',
-            role        TEXT DEFAULT 'engineer',
-            created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            username TEXT,
+            full_name TEXT,
+            lang TEXT DEFAULT 'ru',
+            role TEXT DEFAULT 'engineer',
+            is_active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS invite_codes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            created_by INTEGER,
+            used_by INTEGER,
+            used_at TIMESTAMP,
+            is_used INTEGER DEFAULT 0
         );
 
         CREATE TABLE IF NOT EXISTS projects (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            name       TEXT NOT NULL,
-            is_active  INTEGER DEFAULT 1,
-            sort_order INTEGER DEFAULT 0
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS subprojects (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
-            name       TEXT NOT NULL,
-            is_active  INTEGER DEFAULT 1,
-            sort_order INTEGER DEFAULT 0
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1,
+            FOREIGN KEY (project_id) REFERENCES projects(id)
         );
 
         CREATE TABLE IF NOT EXISTS structure_types (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            code       TEXT NOT NULL UNIQUE,
-            icon       TEXT DEFAULT '🏗',
-            name_ru    TEXT NOT NULL,
-            name_uz    TEXT,
-            name_en    TEXT,
-            name_tr    TEXT,
-            is_active  INTEGER DEFAULT 1,
-            sort_order INTEGER DEFAULT 0
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            icon TEXT DEFAULT '',
+            name_ru TEXT NOT NULL,
+            name_uz TEXT NOT NULL,
+            name_en TEXT NOT NULL,
+            name_tr TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS defect_types (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            code       TEXT NOT NULL UNIQUE,
-            name_ru    TEXT NOT NULL,
-            name_uz    TEXT,
-            name_en    TEXT,
-            name_tr    TEXT,
-            is_active  INTEGER DEFAULT 1,
-            sort_order INTEGER DEFAULT 0
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            name_ru TEXT NOT NULL,
+            name_uz TEXT NOT NULL,
+            name_en TEXT NOT NULL,
+            name_tr TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS pour_methods (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            code          TEXT NOT NULL UNIQUE,
-            icon          TEXT DEFAULT '🚛',
-            name_ru       TEXT NOT NULL,
-            name_uz       TEXT,
-            name_en       TEXT,
-            name_tr       TEXT,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            icon TEXT DEFAULT '',
+            name_ru TEXT NOT NULL,
+            name_uz TEXT NOT NULL,
+            name_en TEXT NOT NULL,
+            name_tr TEXT NOT NULL,
             requires_pump INTEGER DEFAULT 0,
-            is_active     INTEGER DEFAULT 1,
-            sort_order    INTEGER DEFAULT 0
+            is_active INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS pump_types (
-            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-            code       TEXT NOT NULL UNIQUE,
-            name_ru    TEXT NOT NULL,
-            name_uz    TEXT,
-            name_en    TEXT,
-            name_tr    TEXT,
-            is_active  INTEGER DEFAULT 1,
-            sort_order INTEGER DEFAULT 0
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            code TEXT UNIQUE NOT NULL,
+            name_ru TEXT NOT NULL,
+            name_uz TEXT NOT NULL,
+            name_en TEXT NOT NULL,
+            name_tr TEXT NOT NULL,
+            is_active INTEGER DEFAULT 1
         );
 
         CREATE TABLE IF NOT EXISTS shifts (
-            id            INTEGER PRIMARY KEY AUTOINCREMENT,
-            telegram_id   INTEGER REFERENCES users(telegram_id),
-            project_id    INTEGER REFERENCES projects(id),
-            subproject_id INTEGER REFERENCES subprojects(id),
-            shift_type    TEXT NOT NULL,
-            started_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            finished_at   TIMESTAMP,
-            is_active     INTEGER DEFAULT 1
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            project_id INTEGER NOT NULL,
+            subproject_id INTEGER NOT NULL,
+            shift_type TEXT NOT NULL,
+            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            finished_at TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(telegram_id),
+            FOREIGN KEY (project_id) REFERENCES projects(id),
+            FOREIGN KEY (subproject_id) REFERENCES subprojects(id)
         );
 
         CREATE TABLE IF NOT EXISTS entries (
-            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
-            shift_id             INTEGER REFERENCES shifts(id),
-            structure_type_id    INTEGER REFERENCES structure_types(id),
-            structure_name       TEXT NOT NULL,
-            natura_status        TEXT NOT NULL,
-            rebar_status         TEXT NOT NULL,
-            concrete_plan        TEXT NOT NULL,
-            pour_method_id       INTEGER REFERENCES pour_methods(id),
-            pump_type_id         INTEGER REFERENCES pump_types(id),
-            pump_logistics       TEXT,
-            concrete_volume      REAL,
-            formwork_ready       TEXT,
-            waterproof_ready     TEXT,
-            rebar_ready_for_pour TEXT,
-            comment              TEXT,
-            comment_ru           TEXT,
-            comment_uz           TEXT,
-            comment_en           TEXT,
-            comment_tr           TEXT,
-            created_at           TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            shift_id INTEGER NOT NULL,
+            structure_type_id INTEGER,
+            structure_name TEXT NOT NULL,
+            natura_status TEXT NOT NULL,
+            rebar_status TEXT NOT NULL,
+            concrete_plan TEXT NOT NULL,
+            concrete_available INTEGER DEFAULT 0,
+            pour_method_id INTEGER,
+            pump_type_id INTEGER,
+            pump_logistics TEXT,
+            concrete_volume REAL,
+            formwork_ready INTEGER DEFAULT 0,
+            waterproof_ready INTEGER DEFAULT 0,
+            rebar_ready_for_pour INTEGER DEFAULT 0,
+            comment_ru TEXT,
+            comment_uz TEXT,
+            comment_en TEXT,
+            comment_tr TEXT,
+            FOREIGN KEY (shift_id) REFERENCES shifts(id),
+            FOREIGN KEY (structure_type_id) REFERENCES structure_types(id),
+            FOREIGN KEY (pour_method_id) REFERENCES pour_methods(id),
+            FOREIGN KEY (pump_type_id) REFERENCES pump_types(id)
         );
 
         CREATE TABLE IF NOT EXISTS entry_defects (
-            id          INTEGER PRIMARY KEY AUTOINCREMENT,
-            entry_id    INTEGER REFERENCES entries(id) ON DELETE CASCADE,
-            defect_id   INTEGER REFERENCES defect_types(id),
-            custom_text TEXT
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            entry_id INTEGER NOT NULL,
+            defect_id INTEGER,
+            custom_text_ru TEXT,
+            custom_text_uz TEXT,
+            custom_text_en TEXT,
+            custom_text_tr TEXT,
+            FOREIGN KEY (entry_id) REFERENCES entries(id),
+            FOREIGN KEY (defect_id) REFERENCES defect_types(id)
         );
         """)
 
-        # 2. Run migrations (adds columns to OLD tables if they exist)
-        await _migrate(db)
+        # Ensure admin user exists if configured
+        if ADMIN_TG_ID:
+            await db.execute("""
+                INSERT OR IGNORE INTO users (telegram_id, username, full_name, lang, role, is_active)
+                VALUES (?, 'admin', 'Administrator', 'ru', 'admin', 1)
+            """, (ADMIN_TG_ID,))
 
-        # 3. Seed reference data
-        await db.executescript("""
-        INSERT OR IGNORE INTO projects (id, name) VALUES
-            (1, 'Объект A — Башня 1'),
-            (2, 'Объект B — Жилой комплекс'),
-            (3, 'Объект C — Офисный центр');
+        # Seed default data if empty
+        count = await db.execute("SELECT COUNT(*) FROM structure_types")
+        row = await count.fetchone()
+        if row[0] == 0:
+            await _seed_defaults(db)
 
-        INSERT OR IGNORE INTO subprojects (id, project_id, name) VALUES
-            (1, 1, 'Секция 1 / Блок А'),
-            (2, 1, 'Секция 2 / Блок Б'),
-            (3, 1, 'Подвал / Паркинг'),
-            (4, 2, 'Корпус 1'),
-            (5, 2, 'Корпус 2'),
-            (6, 3, 'Офисная зона'),
-            (7, 3, 'Паркинг');
-
-        INSERT OR IGNORE INTO structure_types (code, icon, name_ru, name_uz, name_en, name_tr) VALUES
-            ('COLUMN',     '🏛', 'Колонна',    'Ustun',     'Column',     'Kolon'),
-            ('WALL',       '🧱', 'Стена',      'Devor',     'Wall',       'Duvar'),
-            ('SLAB',       '⬛', 'Перекрытие', 'Tom yopma', 'Slab',       'Döşeme'),
-            ('BEAM',       '📐', 'Балка',      'Balka',     'Beam',       'Kiriş'),
-            ('FOUNDATION', '🪨', 'Фундамент',  'Poydevor',  'Foundation', 'Temel'),
-            ('STAIRCASE',  '🪜', 'Лестница',   'Zinapoya',  'Staircase',  'Merdiven'),
-            ('MONOLITH',   '🔷', 'Монолит',    'Monolit',   'Monolith',   'Monolit');
-
-        INSERT OR IGNORE INTO defect_types (code, name_ru, name_uz, name_en, name_tr) VALUES
-            ('NO_COVER',           'Нет защитного слоя',     'Himoya qatlami yoq',      'No concrete cover',   'Pas payı yok'),
-            ('MISSING_TIES',       'Нехватка хомутов',       'Xomutlar yetishmaydi',    'Missing stirrups',    'Etriye eksik'),
-            ('MISSING_BOLTS',      'Нехватка шпилек',        'Shpilkalar yetishmaydi',  'Missing bolts',       'Civata eksik'),
-            ('WRONG_SPACING',      'Нарушение шага',         'Qadam buzilgan',          'Wrong bar spacing',   'Aralık hatası'),
-            ('FRAME_SHIFT',        'Смещение каркаса',       'Karkasning siljishi',     'Frame displacement',  'Kafes kayması'),
-            ('BINDING_INCOMPLETE', 'Не завершена вязка',     'Boglash tugallanmagan',   'Binding incomplete',  'Bağlama eksik'),
-            ('GEODESY_NOT_READY',  'Геодезия не готова',     'Geodeziya tayyor emas',   'Geodesy not ready',   'Jeodezi hazır değil'),
-            ('NO_CLEANING',        'Нет очистки',            'Tozalash yoq',            'No cleaning',         'Temizleme yok'),
-            ('FORMWORK_DEFECT',    'Дефект опалубки',        'Qolip nuqsoni',           'Formwork defect',     'Kalıp kusuru'),
-            ('CUSTOM',             'Свой дефект',            'Boshqa nuqson',           'Custom defect',       'Özel kusur');
-
-        INSERT OR IGNORE INTO pour_methods (code, icon, name_ru, name_uz, name_en, name_tr, requires_pump) VALUES
-            ('STATIONARY_PUMP', '🏗', 'Стационарный насос', 'Statsionar nasos', 'Stationary pump', 'Sabit pompa', 1),
-            ('MOBILE_PUMP',     '🚛', 'Мобильный насос',    'Mobil nasos',      'Mobile pump',     'Mobil pompa', 1),
-            ('CRANE_BUCKET',    '🏗', 'Кран + бадья',       'Kran + bak',       'Crane + bucket',  'Vinç + kova', 0),
-            ('MANUAL',          '👷', 'Вручную',            'Qolda',            'Manual',          'Elle',        0),
-            ('CONVEYOR',        '⚙️', 'Ленточный конвейер', 'Lenta konveyer',   'Belt conveyor',   'Konveyör',    0);
-
-        INSERT OR IGNORE INTO pump_types (code, name_ru, name_uz, name_en, name_tr) VALUES
-            ('SPIDER_32_4', 'Spider 32+4', 'Spider 32+4', 'Spider 32+4', 'Spider 32+4'),
-            ('PUMP_20_4',   'Насос 20+4',  'Nasos 20+4',  'Pump 20+4',   'Pompa 20+4'),
-            ('PUMP_36_4',   'Насос 36+4',  'Nasos 36+4',  'Pump 36+4',   'Pompa 36+4'),
-            ('BOOM_42',     'Стрела 42м',  'Strel 42m',   'Boom 42m',    'Bom 42m'),
-            ('OTHER',       'Другой',      'Boshqa',      'Other',       'Diğer');
-        """)
         await db.commit()
-        logger.info(f"DB initialized: {DB_PATH}")
+        logger.info("Database initialized.")
 
 
-async def get_db():
-    return aiosqlite.connect(DB_PATH)
+async def _seed_defaults(db: aiosqlite.Connection):
+    await db.executemany("""
+        INSERT OR IGNORE INTO structure_types (code, icon, name_ru, name_uz, name_en, name_tr)
+        VALUES (?,?,?,?,?,?)
+    """, [
+        ("COLUMN", "🏛", "Колонна", "Ustun", "Column", "Kolon"),
+        ("WALL", "🧱", "Стена", "Devor", "Wall", "Duvar"),
+        ("SLAB", "⬛", "Плита", "Plita", "Slab", "Döşeme"),
+        ("BEAM", "━", "Балка", "Rig", "Beam", "Kiriş"),
+        ("FOUNDATION", "🏗", "Фундамент", "Poydevor", "Foundation", "Temel"),
+        ("STAIRCASE", "🪜", "Лестница", "Zinapoya", "Staircase", "Merdiven"),
+    ])
 
+    await db.executemany("""
+        INSERT OR IGNORE INTO defect_types (code, name_ru, name_uz, name_en, name_tr)
+        VALUES (?,?,?,?,?)
+    """, [
+        ("SPACING", "Шаг арматуры не соответствует", "Armatura qadami mos emas", "Rebar spacing non-compliant", "Donatım aralığı uygun değil"),
+        ("COVER", "Защитный слой нарушен", "Himoya qatlami buzilgan", "Cover layer violation", "Örtü katmanı ihlali"),
+        ("SPLICE", "Стыковка не выполнена", "Birlashtirish bajarilmagan", "Splice not done", "Ek yapılmadı"),
+        ("MISSING", "Арматура отсутствует", "Armatura yo'q", "Rebar missing", "Donatım eksik"),
+        ("DIAMETER", "Диаметр не соответствует", "Diametr mos emas", "Diameter non-compliant", "Çap uygun değil"),
+        ("ANCHOR", "Анкеровка нарушена", "Ankerlash buzilgan", "Anchorage violation", "Ankraj ihlali"),
+    ])
+
+    await db.executemany("""
+        INSERT OR IGNORE INTO pour_methods (code, icon, name_ru, name_uz, name_en, name_tr, requires_pump)
+        VALUES (?,?,?,?,?,?,?)
+    """, [
+        ("PUMP", "🚛", "Насос", "Nasos", "Pump", "Pompa", 1),
+        ("CRANE_BUCKET", "🏗", "Кран + ковш", "Kran + chelak", "Crane + bucket", "Vinç + kova", 0),
+        ("MANUAL", "👷", "Вручную", "Qo'lda", "Manual", "Elle", 0),
+        ("CHUTE", "📐", "Лоток", "Novcha", "Chute", "Oluk", 0),
+    ])
+
+    await db.executemany("""
+        INSERT OR IGNORE INTO pump_types (code, name_ru, name_uz, name_en, name_tr)
+        VALUES (?,?,?,?,?)
+    """, [
+        ("STATIONARY", "Стационарный", "Statsionar", "Stationary", "Sabit"),
+        ("TRUCK_MOUNTED", "Автобетононасос", "Avtobetonnasos", "Truck-mounted", "Kamyon tipi"),
+        ("TRAILER", "Прицепной", "Tirma", "Trailer", "Treyler tipi"),
+    ])
+
+    await db.executemany("""
+        INSERT OR IGNORE INTO projects (name) VALUES (?)
+    """, [("Объект 1",), ("Объект 2",)])
+
+    row = await (await db.execute("SELECT id FROM projects LIMIT 1")).fetchone()
+    if row:
+        await db.execute("""
+            INSERT OR IGNORE INTO subprojects (project_id, name) VALUES (?, ?)
+        """, (row["id"], "Блок А"))
+        await db.execute("""
+            INSERT OR IGNORE INTO subprojects (project_id, name) VALUES (?, ?)
+        """, (row["id"], "Блок Б"))
