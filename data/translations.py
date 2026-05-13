@@ -1,354 +1,624 @@
-"""
-All UI strings in 4 languages.
-Data codes are translated via DB lookup — never hardcoded here.
-"""
+# All UI strings in 4 languages
+# Key → {ru, uz, en, tr}
 
-UI: dict[str, dict[str, str]] = {
-
-    # ── LANGUAGE ──
+T = {
     "welcome": {
-        "ru": "👷‍♂️ *HANDOVER BOT*\nСистема передачи смены\n\nВыберите язык:",
-        "uz": "👷‍♂️ *HANDOVER BOT*\nNavbat topshirish tizimi\n\nTilni tanlang:",
-        "en": "👷‍♂️ *HANDOVER BOT*\nShift handover system\n\nSelect language:",
-        "tr": "👷‍♂️ *HANDOVER BOT*\nVardiya devir sistemi\n\nDil seçin:",
+        "ru": "Добро пожаловать! Введите инвайт-код для доступа:",
+        "uz": "Xush kelibsiz! Kirish uchun taklif kodini kiriting:",
+        "en": "Welcome! Enter your invite code to get access:",
+        "tr": "Hoş geldiniz! Erişim için davet kodunuzu girin:",
     },
-
-    # ── MAIN MENU ──
+    "invalid_code": {
+        "ru": "Неверный код. Обратитесь к администратору.",
+        "uz": "Noto'g'ri kod. Administratorga murojaat qiling.",
+        "en": "Invalid code. Please contact the administrator.",
+        "tr": "Geçersiz kod. Lütfen yöneticiye başvurun.",
+    },
+    "choose_lang": {
+        "ru": "Выберите язык интерфейса:",
+        "uz": "Interfeys tilini tanlang:",
+        "en": "Choose your interface language:",
+        "tr": "Arayüz dilini seçin:",
+    },
+    "lang_set": {
+        "ru": "Язык установлен. Добро пожаловать!",
+        "uz": "Til o'rnatildi. Xush kelibsiz!",
+        "en": "Language set. Welcome!",
+        "tr": "Dil ayarlandı. Hoş geldiniz!",
+    },
+    "no_access": {
+        "ru": "Нет доступа. Обратитесь к администратору.",
+        "uz": "Kirish yo'q. Administratorga murojaat qiling.",
+        "en": "No access. Please contact the administrator.",
+        "tr": "Erişim yok. Lütfen yöneticiye başvurun.",
+    },
+    "blocked": {
+        "ru": "Ваш аккаунт заблокирован.",
+        "uz": "Sizning hisobingiz bloklangan.",
+        "en": "Your account has been blocked.",
+        "tr": "Hesabınız engellendi.",
+    },
     "main_menu": {
-        "ru": "🏠 *Главное меню*\nЧто делаем?",
-        "uz": "🏠 *Asosiy menyu*\nNima qilamiz?",
-        "en": "🏠 *Main menu*\nWhat would you like to do?",
-        "tr": "🏠 *Ana menü*\nNe yapmak istersiniz?",
+        "ru": "Главное меню",
+        "uz": "Asosiy menyu",
+        "en": "Main Menu",
+        "tr": "Ana Menü",
     },
-    "btn_new_shift": {
-        "ru": "📋 Начать смену",
-        "uz": "📋 Navbat boshlash",
-        "en": "📋 Start shift",
-        "tr": "📋 Vardiya başlat",
+    "btn_start_shift": {
+        "ru": "Начать смену",
+        "uz": "Smenani boshlash",
+        "en": "Start Shift",
+        "tr": "Vardiyayı Başlat",
     },
     "btn_my_reports": {
-        "ru": "📊 Мои отчёты",
-        "uz": "📊 Mening hisobotlarim",
-        "en": "📊 My reports",
-        "tr": "📊 Raporlarım",
+        "ru": "Мои отчёты",
+        "uz": "Mening hisobotlarim",
+        "en": "My Reports",
+        "tr": "Raporlarım",
+    },
+    "btn_all_reports": {
+        "ru": "Все отчёты",
+        "uz": "Barcha hisobotlar",
+        "en": "All Reports",
+        "tr": "Tüm Raporlar",
     },
     "btn_admin": {
-        "ru": "⚙️ Администрирование",
-        "uz": "⚙️ Boshqaruv",
-        "en": "⚙️ Administration",
-        "tr": "⚙️ Yönetim",
+        "ru": "Администрирование",
+        "uz": "Boshqaruv",
+        "en": "Administration",
+        "tr": "Yönetim",
     },
-    "btn_settings": {
-        "ru": "🌐 Язык / Настройки",
-        "uz": "🌐 Til / Sozlamalar",
-        "en": "🌐 Language / Settings",
-        "tr": "🌐 Dil / Ayarlar",
+    "btn_repeat_last": {
+        "ru": "Как вчера",
+        "uz": "Kecha kabi",
+        "en": "Like yesterday",
+        "tr": "Dün gibi",
     },
-
-    # ── SHIFT ──
-    "select_project": {
-        "ru": "📁 Выберите объект:",
-        "uz": "📁 Ob'ektni tanlang:",
-        "en": "📁 Select project:",
-        "tr": "📁 Proje seçin:",
+    "choose_project": {
+        "ru": "Выберите объект:",
+        "uz": "Ob'ektni tanlang:",
+        "en": "Choose project:",
+        "tr": "Proje seçin:",
     },
-    "select_subproject": {
-        "ru": "📂 Выберите блок / зону:",
-        "uz": "📂 Blok / zonani tanlang:",
-        "en": "📂 Select block / zone:",
-        "tr": "📂 Blok / bölge seçin:",
+    "choose_subproject": {
+        "ru": "Выберите блок/зону:",
+        "uz": "Blok/zonani tanlang:",
+        "en": "Choose block/zone:",
+        "tr": "Blok/bölge seçin:",
     },
-    "select_shift_type": {
-        "ru": "🕐 Тип смены:",
-        "uz": "🕐 Navbat turi:",
-        "en": "🕐 Shift type:",
-        "tr": "🕐 Vardiya türü:",
+    "choose_shift_type": {
+        "ru": "Тип смены:",
+        "uz": "Smena turi:",
+        "en": "Shift type:",
+        "tr": "Vardiya türü:",
     },
-    "shift_open": {
-        "ru": "✅ Смена открыта.\n\nДобавьте первую конструкцию 👇",
-        "uz": "✅ Navbat ochildi.\n\nBirinchi konstruktsiyani qo'shing 👇",
-        "en": "✅ Shift started.\n\nAdd the first structure 👇",
-        "tr": "✅ Vardiya başladı.\n\nİlk yapıyı ekleyin 👇",
+    "shift_day": {
+        "ru": "День",
+        "uz": "Kunduz",
+        "en": "Day",
+        "tr": "Gündüz",
     },
-
-    # ── ENTRY ──
-    "select_structure_type": {
-        "ru": "🏗 Тип конструкции:",
-        "uz": "🏗 Konstruktsiya turi:",
-        "en": "🏗 Structure type:",
-        "tr": "🏗 Yapı türü:",
+    "shift_night": {
+        "ru": "Ночь",
+        "uz": "Kecha",
+        "en": "Night",
+        "tr": "Gece",
+    },
+    "choose_structure_type": {
+        "ru": "Тип конструкции:",
+        "uz": "Konstruksiya turi:",
+        "en": "Structure type:",
+        "tr": "Yapı türü:",
     },
     "enter_structure_name": {
-        "ru": "✏️ Маркировка конструкции:\n_(например: К-1, Ст-14, Пер-3)_",
-        "uz": "✏️ Konstruktsiya markasi:\n_(masalan: K-1, Dev-14, Tom-3)_",
-        "en": "✏️ Structure mark:\n_(e.g. C-1, W-14, S-3)_",
-        "tr": "✏️ Yapı işareti:\n_(örn. K-1, D-14, D-3)_",
+        "ru": "Введите маркировку (например: К-1, Ст-14):",
+        "uz": "Belgilashni kiriting (masalan: K-1, St-14):",
+        "en": "Enter marking (e.g.: C-1, St-14):",
+        "tr": "İşareti girin (örn: K-1, St-14):",
     },
-    "select_natura": {
-        "ru": "📋 *НАТУРА* — разрешение на производство работ:",
-        "uz": "📋 *NATURA* — ishlarni bajarish uchun ruxsat:",
-        "en": "📋 *PERMIT TO WORK* (natura):",
-        "tr": "📋 *ÇALIŞMA İZNİ* (natura):",
+    "choose_natura": {
+        "ru": "НАТУРА:",
+        "uz": "NATURA:",
+        "en": "FORMWORK:",
+        "tr": "KALIP:",
     },
-    "select_rebar": {
-        "ru": "🔩 *АРМАТУРА* — статус приёмки:",
-        "uz": "🔩 *ARMATURA* — qabul holati:",
-        "en": "🔩 *REBAR* — acceptance status:",
-        "tr": "🔩 *DONATI* — kabul durumu:",
+    "natura_given": {
+        "ru": "Дана",
+        "uz": "Berilgan",
+        "en": "Given",
+        "tr": "Verildi",
     },
-    "select_defects": {
-        "ru": "⚠️ *Дефекты арматуры*\nОтметьте все имеющиеся:",
-        "uz": "⚠️ *Armatura nuqsonlari*\nBarchasini belgilang:",
-        "en": "⚠️ *Rebar defects*\nMark all that apply:",
-        "tr": "⚠️ *Donatı kusurları*\nHepsini işaretleyin:",
+    "natura_not_given": {
+        "ru": "Не дана",
+        "uz": "Berilmagan",
+        "en": "Not given",
+        "tr": "Verilmedi",
     },
-    "enter_defect_custom": {
-        "ru": "✏️ Опишите дефект своими словами:",
-        "uz": "✏️ Nuqsonni o'z so'zlaringiz bilan tasvirlab bering:",
-        "en": "✏️ Describe the defect in your own words:",
-        "tr": "✏️ Kusuru kendi kelimelerinizle açıklayın:",
+    "natura_will_be_night": {
+        "ru": "Будет ночью",
+        "uz": "Kechasi bo'ladi",
+        "en": "Will be at night",
+        "tr": "Gece olacak",
     },
-    "select_concrete": {
-        "ru": "🪣 *БЕТОН* — планируется заливка?",
-        "uz": "🪣 *BETON* — quyish rejalashtirilganmi?",
-        "en": "🪣 *CONCRETE* — is pouring planned?",
-        "tr": "🪣 *BETON* — döküm planlanıyor mu?",
+    "choose_rebar": {
+        "ru": "АРМАТУРА:",
+        "uz": "ARMATURA:",
+        "en": "REBAR:",
+        "tr": "DONATIM:",
     },
-    "select_pour_method": {
-        "ru": "🚛 Способ подачи бетона:",
-        "uz": "🚛 Beton uzatish usuli:",
-        "en": "🚛 Concrete delivery method:",
-        "tr": "🚛 Beton iletim yöntemi:",
+    "rebar_done": {
+        "ru": "Сдана",
+        "uz": "Topshirilgan",
+        "en": "Done",
+        "tr": "Tamamlandı",
     },
-    "select_pump_type": {
-        "ru": "⚙️ Тип насоса:",
-        "uz": "⚙️ Nasos turi:",
-        "en": "⚙️ Pump type:",
-        "tr": "⚙️ Pompa türü:",
+    "rebar_partial": {
+        "ru": "Частично",
+        "uz": "Qisman",
+        "en": "Partial",
+        "tr": "Kısmen",
     },
-    "select_pump_logistics": {
-        "ru": "🔧 Логистика насоса:",
-        "uz": "🔧 Nasos logistikasi:",
-        "en": "🔧 Pump logistics:",
-        "tr": "🔧 Pompa lojistiği:",
+    "rebar_not_done": {
+        "ru": "Не сдана",
+        "uz": "Topshirilmagan",
+        "en": "Not done",
+        "tr": "Tamamlanmadı",
     },
-    "enter_volume": {
-        "ru": "📐 Объём бетона (м³):\n_Введите число, например: 12.5_",
-        "uz": "📐 Beton hajmi (m³):\n_Raqam kiriting, masalan: 12.5_",
-        "en": "📐 Concrete volume (m³):\n_Enter number, e.g. 12.5_",
-        "tr": "📐 Beton hacmi (m³):\n_Sayı girin, örn. 12.5_",
+    "choose_defects": {
+        "ru": "Выберите дефекты (можно несколько):",
+        "uz": "Nuqsonlarni tanlang (bir nechta bo'lishi mumkin):",
+        "en": "Select defects (multiple allowed):",
+        "tr": "Kusurları seçin (birden fazla olabilir):",
+    },
+    "btn_add_custom_defect": {
+        "ru": "Другой дефект",
+        "uz": "Boshqa nuqson",
+        "en": "Other defect",
+        "tr": "Diğer kusur",
+    },
+    "btn_done_defects": {
+        "ru": "Готово",
+        "uz": "Tayyor",
+        "en": "Done",
+        "tr": "Tamam",
+    },
+    "enter_custom_defect": {
+        "ru": "Опишите дефект своими словами:",
+        "uz": "Nuqsonni o'z so'zlaringiz bilan tasvirlab bering:",
+        "en": "Describe the defect in your own words:",
+        "tr": "Kusuru kendi kelimelerinizle açıklayın:",
+    },
+    "choose_concrete_plan": {
+        "ru": "БЕТОН — будет заливка?",
+        "uz": "BETON — quyish bo'ladimi?",
+        "en": "CONCRETE — will there be a pour?",
+        "tr": "BETON — döküm olacak mı?",
+    },
+    "btn_yes": {
+        "ru": "Да",
+        "uz": "Ha",
+        "en": "Yes",
+        "tr": "Evet",
+    },
+    "btn_no": {
+        "ru": "Нет",
+        "uz": "Yo'q",
+        "en": "No",
+        "tr": "Hayır",
+    },
+    "concrete_ordered": {
+        "ru": "Бетон заказан?",
+        "uz": "Beton buyurtma qilinganmi?",
+        "en": "Is concrete ordered?",
+        "tr": "Beton sipariş edildi mi?",
+    },
+    "choose_pour_method": {
+        "ru": "Способ подачи бетона:",
+        "uz": "Beton berish usuli:",
+        "en": "Concrete delivery method:",
+        "tr": "Beton dağıtım yöntemi:",
+    },
+    "choose_pump_type": {
+        "ru": "Тип насоса:",
+        "uz": "Nasos turi:",
+        "en": "Pump type:",
+        "tr": "Pompa türü:",
+    },
+    "choose_pump_logistics": {
+        "ru": "Логистика насоса:",
+        "uz": "Nasos logistikasi:",
+        "en": "Pump logistics:",
+        "tr": "Pompa lojistiği:",
+    },
+    "pump_mount": {
+        "ru": "Монтаж",
+        "uz": "Montaj",
+        "en": "Mount",
+        "tr": "Montaj",
+    },
+    "pump_move": {
+        "ru": "Перестановка",
+        "uz": "Ko'chirish",
+        "en": "Reposition",
+        "tr": "Yeniden konumlandırma",
+    },
+    "pump_both": {
+        "ru": "Оба",
+        "uz": "Ikkalasi",
+        "en": "Both",
+        "tr": "İkisi de",
+    },
+    "pump_none": {
+        "ru": "Нет",
+        "uz": "Yo'q",
+        "en": "None",
+        "tr": "Yok",
+    },
+    "enter_concrete_volume": {
+        "ru": "Введите объём бетона (м³):",
+        "uz": "Beton hajmini kiriting (m³):",
+        "en": "Enter concrete volume (m³):",
+        "tr": "Beton hacmini girin (m³):",
+    },
+    "volume_invalid": {
+        "ru": "Введите число (например: 12.5):",
+        "uz": "Raqam kiriting (masalan: 12.5):",
+        "en": "Enter a number (e.g.: 12.5):",
+        "tr": "Bir sayı girin (örn: 12.5):",
+    },
+    "formwork_ready": {
+        "ru": "Опалубка готова?",
+        "uz": "Qolip tayyor?",
+        "en": "Formwork ready?",
+        "tr": "Kalıp hazır mı?",
+    },
+    "waterproof_ready": {
+        "ru": "Гидроизоляция готова?",
+        "uz": "Gidroizolyatsiya tayyor?",
+        "en": "Waterproofing ready?",
+        "tr": "Su yalıtımı hazır mı?",
+    },
+    "rebar_ready_for_pour": {
+        "ru": "Арматура готова к заливке?",
+        "uz": "Armatura quyishga tayyor?",
+        "en": "Rebar ready for pour?",
+        "tr": "Donatım döküme hazır mı?",
     },
     "enter_comment": {
-        "ru": "💬 Доп. комментарий по конструкции:\n_/skip — пропустить_",
-        "uz": "💬 Konstruktsiya bo'yicha qo'shimcha izoh:\n_/skip — o'tkazish_",
-        "en": "💬 Additional comment on structure:\n_/skip — skip_",
-        "tr": "💬 Yapı hakkında ek yorum:\n_/skip — atla_",
+        "ru": "Комментарий (или нажмите Пропустить):",
+        "uz": "Izoh (yoki O'tkazib yuborish tugmasini bosing):",
+        "en": "Comment (or press Skip):",
+        "tr": "Yorum (veya Atla'ya basın):",
     },
-    "invalid_volume": {
-        "ru": "❌ Введите корректное число. Например: 12.5",
-        "uz": "❌ To'g'ri raqam kiriting. Masalan: 12.5",
-        "en": "❌ Enter a valid number. Example: 12.5",
-        "tr": "❌ Geçerli bir sayı girin. Örnek: 12.5",
-    },
-
-    # ── ENTRY DONE ──
-    "entry_saved": {
-        "ru": "✅ *Конструкция сохранена!*",
-        "uz": "✅ *Konstruktsiya saqlandi!*",
-        "en": "✅ *Structure saved!*",
-        "tr": "✅ *Yapı kaydedildi!*",
-    },
-    "entry_menu": {
-        "ru": "Что дальше?",
-        "uz": "Keyingi qadam?",
-        "en": "What's next?",
-        "tr": "Sonraki adım?",
+    "btn_skip": {
+        "ru": "Пропустить",
+        "uz": "O'tkazib yuborish",
+        "en": "Skip",
+        "tr": "Atla",
     },
     "btn_add_structure": {
-        "ru": "➕ Добавить конструкцию",
-        "uz": "➕ Konstruktsiya qo'shish",
-        "en": "➕ Add structure",
-        "tr": "➕ Yapı ekle",
+        "ru": "Добавить конструкцию",
+        "uz": "Konstruksiya qo'shish",
+        "en": "Add structure",
+        "tr": "Yapı ekle",
     },
     "btn_finish_shift": {
-        "ru": "🏁 Завершить смену → Отчёт",
-        "uz": "🏁 Navbatni tugatish → Hisobot",
-        "en": "🏁 Finish shift → Report",
-        "tr": "🏁 Vardiyayı bitir → Rapor",
-    },
-    "btn_cancel_entry": {
-        "ru": "🗑 Отменить последнюю",
-        "uz": "🗑 Oxirgisini bekor qilish",
-        "en": "🗑 Cancel last entry",
-        "tr": "🗑 Son girişi iptal et",
-    },
-
-    # ── WARNINGS ──
-    "warn_natura_not_given": {
-        "ru": "‼️ ВНИМАНИЕ: Натура НЕ ДАНА — заливка ЗАПРЕЩЕНА",
-        "uz": "‼️ DIQQAT: Natura BERILMAGAN — quyish TAQIQLANGAN",
-        "en": "‼️ WARNING: Permit NOT ISSUED — pouring FORBIDDEN",
-        "tr": "‼️ UYARI: İzin VERİLMEDİ — döküm YASAK",
-    },
-    "warn_natura_night": {
-        "ru": "⚠️ Натура будет дана ночью — заливка только после выдачи",
-        "uz": "⚠️ Natura kechasi beriladi — quyish faqat keyin",
-        "en": "⚠️ Permit at night — pouring only after issuance",
-        "tr": "⚠️ İzin gece verilecek — döküm yalnızca sonrasında",
-    },
-    "warn_rebar_blocks": {
-        "ru": "‼️ Арматура НЕ СДАНА — заливка ЗАПРЕЩЕНА",
-        "uz": "‼️ Armatura TOPSHIRILMAGAN — quyish TAQIQLANGAN",
-        "en": "‼️ Rebar NOT ACCEPTED — pouring FORBIDDEN",
-        "tr": "‼️ Donatı TESLİM EDİLMEDİ — döküm YASAK",
-    },
-
-    # ── REPORT ──
-    "generating_report": {
-        "ru": "⏳ Генерирую отчёт...",
-        "uz": "⏳ Hisobot tayyorlanmoqda...",
-        "en": "⏳ Generating report...",
-        "tr": "⏳ Rapor oluşturuluyor...",
-    },
-    "no_entries": {
-        "ru": "⚠️ Нет записей. Добавьте хотя бы одну конструкцию.",
-        "uz": "⚠️ Yozuvlar yo'q. Kamida bitta konstruktsiya qo'shing.",
-        "en": "⚠️ No entries. Add at least one structure.",
-        "tr": "⚠️ Kayıt yok. En az bir yapı ekleyin.",
-    },
-
-    # ── ADMIN ──
-    "admin_menu": {
-        "ru": "⚙️ *Администрирование*\nУправление справочниками:",
-        "uz": "⚙️ *Boshqaruv*\nMa'lumotnomalarni boshqarish:",
-        "en": "⚙️ *Administration*\nManage reference data:",
-        "tr": "⚙️ *Yönetim*\nReferans verileri yönetin:",
-    },
-    "btn_manage_projects": {
-        "ru": "🏗 Объекты и подобъекты",
-        "uz": "🏗 Ob'ektlar va kichik ob'ektlar",
-        "en": "🏗 Projects & subprojects",
-        "tr": "🏗 Projeler ve alt projeler",
-    },
-    "btn_manage_structures": {
-        "ru": "🏛 Типы конструкций",
-        "uz": "🏛 Konstruktsiya turlari",
-        "en": "🏛 Structure types",
-        "tr": "🏛 Yapı türleri",
-    },
-    "btn_manage_defects": {
-        "ru": "⚠️ Список дефектов",
-        "uz": "⚠️ Nuqsonlar ro'yxati",
-        "en": "⚠️ Defect list",
-        "tr": "⚠️ Kusur listesi",
-    },
-    "btn_manage_pour_methods": {
-        "ru": "🚛 Способы подачи бетона",
-        "uz": "🚛 Beton uzatish usullari",
-        "en": "🚛 Pour methods",
-        "tr": "🚛 Döküm yöntemleri",
-    },
-    "btn_manage_pump_types": {
-        "ru": "⚙️ Типы насосов",
-        "uz": "⚙️ Nasos turlari",
-        "en": "⚙️ Pump types",
-        "tr": "⚙️ Pompa türleri",
+        "ru": "Завершить смену",
+        "uz": "Smenani tugatish",
+        "en": "Finish shift",
+        "tr": "Vardiyayı bitir",
     },
     "btn_back": {
-        "ru": "◀️ Назад",
-        "uz": "◀️ Orqaga",
-        "en": "◀️ Back",
-        "tr": "◀️ Geri",
-    },
-    "btn_add_new": {
-        "ru": "➕ Добавить",
-        "uz": "➕ Qo'shish",
-        "en": "➕ Add new",
-        "tr": "➕ Yeni ekle",
-    },
-    "enter_name_ru": {
-        "ru": "✏️ Введите название на русском:",
-        "uz": "✏️ Rus tilida nom kiriting:",
-        "en": "✏️ Enter name in Russian:",
-        "tr": "✏️ Rusça ad girin:",
-    },
-    "item_added": {
-        "ru": "✅ Добавлено успешно",
-        "uz": "✅ Muvaffaqiyatli qo'shildi",
-        "en": "✅ Added successfully",
-        "tr": "✅ Başarıyla eklendi",
-    },
-    "item_deleted": {
-        "ru": "🗑 Удалено",
-        "uz": "🗑 O'chirildi",
-        "en": "🗑 Deleted",
-        "tr": "🗑 Silindi",
-    },
-    "confirm_delete": {
-        "ru": "❓ Удалить этот элемент?",
-        "uz": "❓ Bu elementni o'chirasizmi?",
-        "en": "❓ Delete this item?",
-        "tr": "❓ Bu öğeyi silelim mi?",
-    },
-    "btn_confirm_yes": {
-        "ru": "✅ Да, удалить",
-        "uz": "✅ Ha, o'chirish",
-        "en": "✅ Yes, delete",
-        "tr": "✅ Evet, sil",
+        "ru": "Назад",
+        "uz": "Orqaga",
+        "en": "Back",
+        "tr": "Geri",
     },
     "btn_cancel": {
-        "ru": "❌ Отмена",
-        "uz": "❌ Bekor qilish",
-        "en": "❌ Cancel",
-        "tr": "❌ İptal",
+        "ru": "Отмена",
+        "uz": "Bekor qilish",
+        "en": "Cancel",
+        "tr": "İptal",
     },
-
-    # ── COMMON ──
-    "btn_yes": {"ru": "✅ Да", "uz": "✅ Ha", "en": "✅ Yes", "tr": "✅ Evet"},
-    "btn_no": {"ru": "❌ Нет", "uz": "❌ Yo'q", "en": "❌ No", "tr": "❌ Hayır"},
-    "btn_done": {"ru": "✅ Готово", "uz": "✅ Tayyor", "en": "✅ Done", "tr": "✅ Tamam"},
-    "btn_skip": {"ru": "⏭ Пропустить", "uz": "⏭ O'tkazish", "en": "⏭ Skip", "tr": "⏭ Atla"},
-    "btn_ready": {"ru": "✅ Готово", "uz": "✅ Tayyor", "en": "✅ Ready", "tr": "✅ Hazır"},
-    "btn_not_ready": {"ru": "❌ Не готово", "uz": "❌ Tayyor emas", "en": "❌ Not ready", "tr": "❌ Hazır değil"},
-    "not_applicable": {"ru": "—", "uz": "—", "en": "—", "tr": "—"},
-    "access_denied": {
-        "ru": "🚫 Доступ запрещён",
-        "uz": "🚫 Kirish taqiqlangan",
-        "en": "🚫 Access denied",
-        "tr": "🚫 Erişim engellendi",
+    "shift_cancelled": {
+        "ru": "Смена отменена.",
+        "uz": "Smena bekor qilindi.",
+        "en": "Shift cancelled.",
+        "tr": "Vardiya iptal edildi.",
+    },
+    "generating_report": {
+        "ru": "Генерирую отчёт...",
+        "uz": "Hisobot yaratilmoqda...",
+        "en": "Generating report...",
+        "tr": "Rapor oluşturuluyor...",
+    },
+    "report_ready": {
+        "ru": "Акт передачи смены готов.",
+        "uz": "Smena topshirish dalolatnomasi tayyor.",
+        "en": "Shift handover report ready.",
+        "tr": "Vardiya devir raporu hazır.",
+    },
+    "no_reports": {
+        "ru": "Отчётов не найдено.",
+        "uz": "Hisobotlar topilmadi.",
+        "en": "No reports found.",
+        "tr": "Rapor bulunamadı.",
+    },
+    "choose_report": {
+        "ru": "Выберите отчёт:",
+        "uz": "Hisobotni tanlang:",
+        "en": "Choose report:",
+        "tr": "Rapor seçin:",
+    },
+    "warn_natura_concrete": {
+        "ru": "Натура не дана, но запланирована заливка",
+        "uz": "Natura berilmagan, lekin quyish rejalashtirilgan",
+        "en": "Formwork not given, but pour is planned",
+        "tr": "Kalıp verilmedi ama döküm planlandı",
+    },
+    "warn_rebar_concrete": {
+        "ru": "Арматура не сдана, но запланирована заливка",
+        "uz": "Armatura topshirilmagan, lekin quyish rejalashtirilgan",
+        "en": "Rebar not done, but pour is planned",
+        "tr": "Donatım tamamlanmadı ama döküm planlandı",
+    },
+    "warn_concrete_not_ordered": {
+        "ru": "Бетон не заказан",
+        "uz": "Beton buyurtma qilinmagan",
+        "en": "Concrete not ordered",
+        "tr": "Beton sipariş edilmedi",
+    },
+    "entry_added": {
+        "ru": "Конструкция добавлена.",
+        "uz": "Konstruksiya qo'shildi.",
+        "en": "Structure added.",
+        "tr": "Yapı eklendi.",
+    },
+    "shift_summary": {
+        "ru": "Смена: {count} конструкций. Завершить или добавить ещё?",
+        "uz": "Smena: {count} ta konstruksiya. Yakunlash yoki yana qo'shish?",
+        "en": "Shift: {count} structures. Finish or add more?",
+        "tr": "Vardiya: {count} yapı. Bitir veya daha ekle?",
+    },
+    "translating": {
+        "ru": "Перевожу комментарий...",
+        "uz": "Izoh tarjima qilinmoqda...",
+        "en": "Translating comment...",
+        "tr": "Yorum çevriliyor...",
+    },
+    # Admin strings
+    "admin_menu": {
+        "ru": "Панель администратора",
+        "uz": "Administrator paneli",
+        "en": "Admin Panel",
+        "tr": "Yönetici Paneli",
+    },
+    "btn_manage_projects": {
+        "ru": "Объекты",
+        "uz": "Ob'ektlar",
+        "en": "Projects",
+        "tr": "Projeler",
+    },
+    "btn_manage_structures": {
+        "ru": "Типы конструкций",
+        "uz": "Konstruksiya turlari",
+        "en": "Structure Types",
+        "tr": "Yapı Türleri",
+    },
+    "btn_manage_defects": {
+        "ru": "Типы дефектов",
+        "uz": "Nuqson turlari",
+        "en": "Defect Types",
+        "tr": "Kusur Türleri",
+    },
+    "btn_manage_pour": {
+        "ru": "Способы подачи",
+        "uz": "Berish usullari",
+        "en": "Pour Methods",
+        "tr": "Döküm Yöntemleri",
+    },
+    "btn_manage_pumps": {
+        "ru": "Типы насосов",
+        "uz": "Nasos turlari",
+        "en": "Pump Types",
+        "tr": "Pompa Türleri",
+    },
+    "btn_manage_users": {
+        "ru": "Пользователи",
+        "uz": "Foydalanuvchilar",
+        "en": "Users",
+        "tr": "Kullanıcılar",
+    },
+    "btn_gen_codes": {
+        "ru": "Генерация кодов",
+        "uz": "Kod yaratish",
+        "en": "Generate Codes",
+        "tr": "Kod Üret",
+    },
+    "gencode_how_many": {
+        "ru": "Сколько кодов сгенерировать?",
+        "uz": "Nechta kod yaratish kerak?",
+        "en": "How many codes to generate?",
+        "tr": "Kaç kod üretilsin?",
+    },
+    "codes_generated": {
+        "ru": "Сгенерировано {n} кодов:\n{codes}",
+        "uz": "{n} ta kod yaratildi:\n{codes}",
+        "en": "{n} codes generated:\n{codes}",
+        "tr": "{n} kod üretildi:\n{codes}",
+    },
+    "fsm_timeout": {
+        "ru": "Сессия ввода истекла (30 мин бездействия). Данные не сохранены.",
+        "uz": "Kirish sessiyasi tugadi (30 daqiqa faoliyatsizlik). Ma'lumotlar saqlanmadi.",
+        "en": "Input session expired (30 min inactivity). Data not saved.",
+        "tr": "Giriş oturumu sona erdi (30 dakika hareketsizlik). Veriler kaydedilmedi.",
+    },
+    "enter_project_name": {
+        "ru": "Введите название объекта:",
+        "uz": "Ob'ekt nomini kiriting:",
+        "en": "Enter project name:",
+        "tr": "Proje adını girin:",
+    },
+    "project_added": {
+        "ru": "Объект добавлен.",
+        "uz": "Ob'ekt qo'shildi.",
+        "en": "Project added.",
+        "tr": "Proje eklendi.",
+    },
+    "enter_subproject_name": {
+        "ru": "Введите название блока/зоны:",
+        "uz": "Blok/zona nomini kiriting:",
+        "en": "Enter block/zone name:",
+        "tr": "Blok/bölge adını girin:",
+    },
+    "subproject_added": {
+        "ru": "Блок добавлен.",
+        "uz": "Blok qo'shildi.",
+        "en": "Block added.",
+        "tr": "Blok eklendi.",
+    },
+    "enter_name_ru": {
+        "ru": "Введите название на русском:",
+        "uz": "Rus tilida nomini kiriting:",
+        "en": "Enter name in Russian:",
+        "tr": "Rusça adı girin:",
+    },
+    "translating_auto": {
+        "ru": "Перевожу на UZ/EN/TR автоматически...",
+        "uz": "UZ/EN/TR ga avtomatik tarjima qilinmoqda...",
+        "en": "Auto-translating to UZ/EN/TR...",
+        "tr": "UZ/EN/TR'ye otomatik çevriliyor...",
+    },
+    "confirm_translation": {
+        "ru": "Переводы:\nUZ: {uz}\nEN: {en}\nTR: {tr}\n\nСохранить?",
+        "uz": "Tarjimalar:\nUZ: {uz}\nEN: {en}\nTR: {tr}\n\nSaqlash?",
+        "en": "Translations:\nUZ: {uz}\nEN: {en}\nTR: {tr}\n\nSave?",
+        "tr": "Çeviriler:\nUZ: {uz}\nEN: {en}\nTR: {tr}\n\nKaydet?",
+    },
+    "saved": {
+        "ru": "Сохранено.",
+        "uz": "Saqlandi.",
+        "en": "Saved.",
+        "tr": "Kaydedildi.",
+    },
+    "enter_icon": {
+        "ru": "Введите иконку (emoji или код):",
+        "uz": "Ikonka kiriting (emoji yoki kod):",
+        "en": "Enter icon (emoji or code):",
+        "tr": "Simge girin (emoji veya kod):",
+    },
+    "list_empty": {
+        "ru": "Список пуст.",
+        "uz": "Ro'yxat bo'sh.",
+        "en": "List is empty.",
+        "tr": "Liste boş.",
+    },
+    "user_list_header": {
+        "ru": "Пользователи системы:",
+        "uz": "Tizim foydalanuvchilari:",
+        "en": "System users:",
+        "tr": "Sistem kullanıcıları:",
+    },
+    "user_blocked": {
+        "ru": "Пользователь заблокирован.",
+        "uz": "Foydalanuvchi bloklandi.",
+        "en": "User blocked.",
+        "tr": "Kullanıcı engellendi.",
+    },
+    "user_unblocked": {
+        "ru": "Пользователь разблокирован.",
+        "uz": "Foydalanuvchi blokdan chiqarildi.",
+        "en": "User unblocked.",
+        "tr": "Kullanıcının engeli kaldırıldı.",
+    },
+    "role_updated": {
+        "ru": "Роль обновлена.",
+        "uz": "Rol yangilandi.",
+        "en": "Role updated.",
+        "tr": "Rol güncellendi.",
+    },
+    "user_not_found": {
+        "ru": "Пользователь не найден.",
+        "uz": "Foydalanuvchi topilmadi.",
+        "en": "User not found.",
+        "tr": "Kullanıcı bulunamadı.",
+    },
+    "requires_pump_yes": {
+        "ru": "Требует насос: Да",
+        "uz": "Nasos talab qiladi: Ha",
+        "en": "Requires pump: Yes",
+        "tr": "Pompa gerektirir: Evet",
+    },
+    "requires_pump_no": {
+        "ru": "Требует насос: Нет",
+        "uz": "Nasos talab qilmaydi: Yo'q",
+        "en": "Requires pump: No",
+        "tr": "Pompa gerektirmez: Hayır",
+    },
+    "select_project_for_subproject": {
+        "ru": "Выберите объект для нового блока:",
+        "uz": "Yangi blok uchun ob'ektni tanlang:",
+        "en": "Select project for the new block:",
+        "tr": "Yeni blok için proje seçin:",
+    },
+    "no_projects": {
+        "ru": "Нет объектов. Сначала добавьте объект.",
+        "uz": "Ob'ektlar yo'q. Avval ob'ekt qo'shing.",
+        "en": "No projects. Add a project first.",
+        "tr": "Proje yok. Önce bir proje ekleyin.",
+    },
+    "last_shift_not_found": {
+        "ru": "Предыдущая смена не найдена.",
+        "uz": "Oldingi smena topilmadi.",
+        "en": "No previous shift found.",
+        "tr": "Önceki vardiya bulunamadı.",
+    },
+    "last_shift_loaded": {
+        "ru": "Структура предыдущей смены загружена. Проверьте и завершите.",
+        "uz": "Oldingi smena tuzilmasi yuklandi. Tekshiring va tugatng.",
+        "en": "Previous shift structure loaded. Review and finish.",
+        "tr": "Önceki vardiya yapısı yüklendi. İnceleyin ve bitirin.",
+    },
+    "page_nav": {
+        "ru": "Стр. {cur}/{total}",
+        "uz": "Bet {cur}/{total}",
+        "en": "Page {cur}/{total}",
+        "tr": "Sayfa {cur}/{total}",
+    },
+    "btn_prev": {
+        "ru": "◀ Назад",
+        "uz": "◀ Orqaga",
+        "en": "◀ Prev",
+        "tr": "◀ Önceki",
+    },
+    "btn_next": {
+        "ru": "Далее ▶",
+        "uz": "Keyingi ▶",
+        "en": "Next ▶",
+        "tr": "Sonraki ▶",
+    },
+    "delete_confirm": {
+        "ru": "Удалить '{name}'?",
+        "uz": "'{name}' ni o'chirishmi?",
+        "en": "Delete '{name}'?",
+        "tr": "'{name}' silinsin mi?",
+    },
+    "deleted": {
+        "ru": "Удалено.",
+        "uz": "O'chirildi.",
+        "en": "Deleted.",
+        "tr": "Silindi.",
     },
 }
 
-# ── CODE LABEL DICTIONARIES (for DB-stored codes) ──
 
-SHIFT_LABELS = {
-    "DAY": {"ru": "🌅 День", "uz": "🌅 Kun", "en": "🌅 Day", "tr": "🌅 Gündüz"},
-    "NIGHT": {"ru": "🌙 Ночь", "uz": "🌙 Kecha", "en": "🌙 Night", "tr": "🌙 Gece"},
-}
-
-NATURA_LABELS = {
-    "NATURA_GIVEN": {"ru": "✅ Дана", "uz": "✅ Berilgan", "en": "✅ Issued", "tr": "✅ Verildi"},
-    "NATURA_NOT_GIVEN": {"ru": "🚫 Не дана", "uz": "🚫 Berilmagan", "en": "🚫 Not issued", "tr": "🚫 Verilmedi"},
-    "NATURA_WILL_BE_NIGHT": {"ru": "⚠️ Будет ночью", "uz": "⚠️ Kechasi", "en": "⚠️ At night", "tr": "⚠️ Gece"},
-}
-
-REBAR_LABELS = {
-    "REBAR_ACCEPTED": {"ru": "✅ Сдана", "uz": "✅ Topshirildi", "en": "✅ Accepted", "tr": "✅ Teslim"},
-    "REBAR_PARTIAL": {"ru": "⚠️ Частично", "uz": "⚠️ Qisman", "en": "⚠️ Partial", "tr": "⚠️ Kısmen"},
-    "REBAR_NOT_ACCEPTED": {"ru": "🚫 Не сдана", "uz": "🚫 Topshirilmagan", "en": "🚫 Not accepted", "tr": "🚫 Teslim yok"},
-}
-
-PUMP_LOGISTICS_LABELS = {
-    "LOGISTICS_ASSEMBLY": {"ru": "🔧 Монтаж", "uz": "🔧 Montaj", "en": "🔧 Assembly", "tr": "🔧 Montaj"},
-    "LOGISTICS_RELOCATION": {"ru": "🔄 Перестановка", "uz": "🔄 Ko'chirish", "en": "🔄 Relocation", "tr": "🔄 Taşıma"},
-    "LOGISTICS_BOTH": {"ru": "🔧🔄 Монтаж+Перестановка", "uz": "🔧🔄 Montaj+Ko'chirish", "en": "🔧🔄 Both", "tr": "🔧🔄 İkisi"},
-    "LOGISTICS_NONE": {"ru": "➖ Не требуется", "uz": "➖ Kerak emas", "en": "➖ Not required", "tr": "➖ Gerekmez"},
-}
-
-
-def t(key: str, lang: str) -> str:
-    return UI.get(key, {}).get(lang) or UI.get(key, {}).get("ru") or key
-
-
-def lbl(dictionary: dict, code: str, lang: str) -> str:
-    return dictionary.get(code, {}).get(lang) or dictionary.get(code, {}).get("ru") or code
+def t(key: str, lang: str, **kwargs) -> str:
+    """Get translated string for given key and language."""
+    entry = T.get(key, {})
+    text = entry.get(lang) or entry.get("ru") or key
+    if kwargs:
+        try:
+            text = text.format(**kwargs)
+        except (KeyError, ValueError):
+            pass
+    return text
